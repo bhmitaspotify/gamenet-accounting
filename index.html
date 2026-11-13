@@ -194,6 +194,16 @@ async function deleteExpense(id){
   showToast('هزینه حذف شد');
   render();
 }
+async function editExpense(id, description, amount, date){
+  if (!isAdmin()) return;
+  if (!description || !amount){ showToast('شرح و مبلغ را وارد کنید'); return; }
+  await sb('expenses?id=eq.'+id, { method:'PATCH', body:{
+    description, amount: Number(amount), expense_date: date || todayStr(),
+  }});
+  await Promise.all([loadExpenses(), state.dayLog.range ? loadDayLog() : Promise.resolve()]);
+  showToast('هزینه ویرایش شد');
+  closeModal();
+}
 
 // ---------- Report ----------
 function localDateStr(d){
@@ -482,6 +492,7 @@ function renderExpenses(){
       </div>
       <div class="row" style="gap:8px">
         <b>${toman(e.amount)}</b>
+        ${isAdmin() ? `<button class="btn secondary small" onclick="openModal({type:'editExpense', id:${e.id}, description:${JSON.stringify(e.description)}, amount:${e.amount}, date:${JSON.stringify(e.expense_date)}})">ویرایش</button>` : ''}
         ${isAdmin() ? `<button class="btn danger small" onclick="safe(()=>deleteExpense(${e.id}))">حذف</button>` : ''}
       </div>
     </div>`).join('') || `<div class="muted">هزینه‌ای ثبت نشده</div>`;
@@ -562,6 +573,7 @@ function renderDayLog(){
       </div>
       <div class="row" style="gap:8px">
         <b>${toman(e.amount)}</b>
+        ${isAdmin() ? `<button class="btn secondary small" onclick="openModal({type:'editExpense', id:${e.id}, description:${JSON.stringify(e.description)}, amount:${e.amount}, date:${JSON.stringify(e.expense_date)}})">ویرایش</button>` : ''}
         ${isAdmin() ? `<button class="btn danger small" onclick="safe(()=>deleteExpense(${e.id}))">حذف</button>` : ''}
       </div>
     </div>`).join('') || `<div class="muted">هزینه‌ای برای این روز ثبت نشده</div>`;
@@ -596,6 +608,17 @@ function renderModal(){
       <input type="password" id="newPass" value="${m.newPass||''}" oninput="state.modal.newPass=this.value">
       <button class="btn block" style="margin-top:10px" onclick="safe(()=>changePassword(state.modal.newPass||''))">تغییر رمز</button>
       <button class="btn danger block" style="margin-top:10px" onclick="logout(); closeModal();">خروج از حساب</button>`;
+  }
+  else if (m.type==='editExpense'){
+    body = `
+      <div class="head"><h3>ویرایش هزینه</h3><button class="closebtn" onclick="closeModal()">✕</button></div>
+      <label>شرح هزینه</label>
+      <input type="text" id="editExpDesc" value="${m.description||''}" oninput="state.modal.description=this.value">
+      <label style="margin-top:8px">مبلغ (تومان)</label>
+      <input type="number" id="editExpAmount" value="${m.amount||''}" oninput="state.modal.amount=this.value">
+      <label style="margin-top:8px">تاریخ</label>
+      <input type="date" id="editExpDate" value="${m.date||''}" oninput="state.modal.date=this.value">
+      <button class="btn block" style="margin-top:12px" onclick="safe(()=>editExpense(${m.id}, (state.modal.description||'').trim(), state.modal.amount, state.modal.date))">ذخیره تغییرات</button>`;
   }
   return `<div class="overlay" onclick="if(event.target===this) closeModal()"><div class="sheet">${body}</div></div>`;
 }
