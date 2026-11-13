@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>حسابداری گیم‌نت</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --bg:#0f1115; --card:#181b21; --elev:#20242c; --text:#eef1f5; --dim:#9aa3b2;
@@ -137,6 +139,7 @@ const state = {
   modal: null,
   toast: null,
   submitting: false,
+  pdfBusy: false,
 };
 
 function showToast(msg){
@@ -199,6 +202,22 @@ function localDateStr(d){
   const day = String(d.getDate()).padStart(2,'0');
   return y+'-'+m+'-'+day;
 }
+function jalaliParts(date){
+  const fmt = new Intl.DateTimeFormat('en-US-u-ca-persian', {year:'numeric', month:'numeric', day:'numeric'});
+  const parts = fmt.formatToParts(date);
+  const obj = {};
+  parts.forEach(p=>{ if (p.type!=='literal') obj[p.type] = parseInt(p.value,10); });
+  return obj;
+}
+function startOfJalaliMonth(date){
+  let d = new Date(date);
+  d.setHours(0,0,0,0);
+  for (let i=0;i<31;i++){
+    if (jalaliParts(d).day === 1) break;
+    d.setDate(d.getDate()-1);
+  }
+  return d;
+}
 function rangeFor(mode, offset){
   const now = new Date();
   if (mode === 'day'){
@@ -252,6 +271,118 @@ async function loadReport(){
 }
 function setReportMode(m){ state.report.mode = m; state.report.offset = 0; safe(loadReport); }
 function shiftReport(delta){ state.report.offset += delta; safe(loadReport); }
+
+// ---------- Monthly PDF export (Jalali month-to-date) ----------
+async function exportMonthlyPdf(){
+  if (state.pdfBusy) return;
+  state.pdfBusy = true; render();
+  try{
+    const now = new Date();
+    const start = startOfJalaliMonth(now);
+    const end = new Date(now); end.setHours(0,0,0,0); end.setDate(end.getDate()+1);
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
+    const startDate = localDateStr(start);
+    const endDate = localDateStr(end);
+    const [sessions, cafeOrders, expenses, debtors] = await Promise.all([
+      sb('sessions?status=eq.completed&end_at=gte.'+startIso+'&end_at=lt.'+endIso+'&select=play_cost,cafe_cost,payment_type'),
+      sb('cafe_orders?status=eq.completed&created_at=gte.'+startIso+'&created_at=lt.'+endIso+'&select=total,payment_type'),
+      sb('expenses?expense_date=gte.'+startDate+'&expense_date=lt.'+endDate+'&select=*&order=expense_date.asc'),
+      sb('customers?debt=gt.0&select=name,code,debt&order=debt.desc&limit=500'),
+    ]);
+    let rentalPaid=0, rentalDebt=0, cafePaid=0, cafeDebt=0;
+    sessions.forEach(s=>{
+      if (s.payment_type==='card' || s.payment_type==='cash') rentalPaid += Number(s.play_cost||0);
+      else rentalDebt += Number(s.play_cost||0);
+      if (s.payment_type==='card' || s.payment_type==='cash') cafePaid += Number(s.cafe_cost||0);
+      else cafeDebt += Number(s.cafe_cost||0);
+    });
+    cafeOrders.forEach(o=>{
+      if (o.payment_type==='card' || o.payment_type==='cash') cafePaid += Number(o.total||0);
+      else cafeDebt += Number(o.total||0);
+    });
+    const rentalSum = rentalPaid + rentalDebt;
+    const cafeSum = cafePaid + cafeDebt;
+    const totalExpenses = expenses.reduce((a,e)=>a+Number(e.amount||0),0);
+    const netProfit = (rentalSum + cafeSum) - totalExpenses;
+    await renderAndDownloadPdf({ start, end, rentalPaid, rentalDebt, rentalSum, cafePaid, cafeDebt, cafeSum, expenses, totalExpenses, netProfit, debtors });
+  } catch(e){
+    showToast('خطا در ساخت گزارش: ' + (e.message||e));
+  } finally {
+    state.pdfBusy = false; render();
+  }
+}
+async function renderAndDownloadPdf(d){
+  const periodLabel = d.start.toLocaleDateString('fa-IR') + ' تا ' + new Date(d.end-1).toLocaleDateString('fa-IR');
+  const expenseRows = d.expenses.map(e=>`
+    <tr>
+      <td>${new Date(e.expense_date).toLocaleDateString('fa-IR')}</td>
+      <td>${e.description}</td>
+      <td>${staffLabel(e.staff_username)}</td>
+      <td>${toman(e.amount)}</td>
+    </tr>`).join('') || `<tr><td colspan="4" style="text-align:center">هزینه‌ای ثبت نشده</td></tr>`;
+  const debtorRows = d.debtors.map(c=>`
+    <tr><td>${c.name}</td><td>${c.code}</td><td>${toman(c.debt)}</td></tr>`).join('') || `<tr><td colspan="3" style="text-align:center">بدهکاری ثبت نشده</td></tr>`;
+  const box = document.createElement('div');
+  box.style.position = 'fixed';
+  box.style.top = '-99999px';
+  box.style.left = '0';
+  box.style.width = '760px';
+  box.style.direction = 'rtl';
+  box.style.fontFamily = getComputedStyle(document.body).fontFamily;
+  box.style.background = '#0f1115';
+  box.style.color = '#eef1f5';
+  box.style.padding = '24px';
+  box.innerHTML = `
+    <style>
+      .pdfbox table{width:100%;border-collapse:collapse;font-size:14px}
+      .pdfbox td{padding:6px 8px;border-bottom:1px solid #2a2f3a}
+      .pdfbox h2{margin:0 0 4px}
+      .pdfbox h3{margin:18px 0 6px;color:#9aa3b2}
+      .pdfbox .muted{color:#9aa3b2;font-size:13px}
+      .pdfbox .big{font-size:18px;font-weight:bold}
+    </style>
+    <div class="pdfbox">
+      <h2>گزارش ماهانه حسابداری گیم‌نت</h2>
+      <div class="muted">بازه: ${periodLabel}</div>
+      <h3>۱-۳. درآمد اجاره دستگاه‌ها</h3>
+      <table>
+        <tr><td>درآمد پرداخت‌شده</td><td>${toman(d.rentalPaid)}</td></tr>
+        <tr><td>درآمد ثبت‌شده به‌عنوان بدهی</td><td>${toman(d.rentalDebt)}</td></tr>
+        <tr><td><b>جمع درآمد اجاره</b></td><td><b>${toman(d.rentalSum)}</b></td></tr>
+      </table>
+      <h3>۴-۶. درآمد کافه</h3>
+      <table>
+        <tr><td>درآمد پرداخت‌شده</td><td>${toman(d.cafePaid)}</td></tr>
+        <tr><td>درآمد ثبت‌شده به‌عنوان بدهی</td><td>${toman(d.cafeDebt)}</td></tr>
+        <tr><td><b>جمع درآمد کافه</b></td><td><b>${toman(d.cafeSum)}</b></td></tr>
+      </table>
+      <h3>۷. هزینه‌ها</h3>
+      <table>
+        <tr><td><b>تاریخ</b></td><td><b>شرح</b></td><td><b>ثبت‌کننده</b></td><td><b>مبلغ</b></td></tr>
+        ${expenseRows}
+        <tr><td colspan="3"><b>جمع هزینه‌ها</b></td><td><b>${toman(d.totalExpenses)}</b></td></tr>
+      </table>
+      <h3>۸. سود</h3>
+      <table>
+        <tr><td class="big">سود خالص (کل درآمد منهای هزینه‌ها)</td><td class="big">${toman(d.netProfit)}</td></tr>
+      </table>
+      <h3>۹. بدهکاران گیم‌نت (نزولی)</h3>
+      <table>
+        <tr><td><b>نام</b></td><td><b>کد</b></td><td><b>بدهی</b></td></tr>
+        ${debtorRows}
+      </table>
+    </div>`;
+  document.body.appendChild(box);
+  try{
+    const canvas = await html2canvas(box, { backgroundColor:'#0f1115', scale:2 });
+    const pdf = new window.jspdf.jsPDF({ orientation: canvas.height>canvas.width?'p':'l', unit:'px', format:[canvas.width, canvas.height] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save('gozaresh-mahane-'+localDateStr(new Date())+'.pdf');
+  } finally {
+    document.body.removeChild(box);
+  }
+}
 
 // ---------- Day log (history) ----------
 function staffLabel(u){ return u==='arvin' ? 'اروین' : (u==='parsa' ? 'پارسا' : (u||'-')); }
@@ -389,6 +520,10 @@ function renderReport(){
       <button class="btn small ${r.mode==='week'?'':'secondary'}" onclick="setReportMode('week')">هفتگی</button>
       <button class="btn small ${r.mode==='month'?'':'secondary'}" onclick="setReportMode('month')">ماهانه (۳۰ روزه)</button>
     </div>
+    ${r.mode==='month' ? `
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn block" ${state.pdfBusy?'disabled':''} onclick="exportMonthlyPdf()">${state.pdfBusy?'در حال ساخت گزارش...':'📄 دانلود گزارش ماهانه (PDF)'}</button>
+    </div>` : ''}
     <div class="row" style="margin-bottom:10px">
       <button class="btn secondary small" onclick="shiftReport(-1)">⟨ بازه قبل</button>
       <span class="muted">${rangeLabel}</span>
