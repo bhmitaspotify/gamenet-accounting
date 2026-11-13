@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>حسابداری گیم‌نت</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#181b21; --elev:#20242c; --text:#eef1f5; --dim:#9aa3b2;
+    --accent:#7c5cff; --accent-2:#22c55e; --danger:#ef4444; --warning:#f59e0b; --border:#2a2f3a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
+  body{font-family:Tahoma,Vazirmatn,system-ui,sans-serif;direction:rtl;padding-bottom:env(safe-area-inset-bottom);}
+  button,input,select{font-family:inherit;}
+  #root{min-height:100vh;}
+
+  .topbar{position:fixed;top:0;right:0;left:0;height:56px;background:var(--elev);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:20;}
+  .topbar .title{font-weight:bold;font-size:15px;}
+  .topbar .right{display:flex;align-items:center;gap:10px;}
+  .chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;color:var(--dim);}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#fff;}
+
+  main{padding:68px 12px 78px;max-width:520px;margin:0 auto;}
+
+  .bottombar{position:fixed;bottom:0;right:0;left:0;height:60px;background:var(--elev);border-top:1px solid var(--border);
+    display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom);}
+  .navbtn{flex:1;background:none;border:none;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;padding:6px 0;}
+  .navbtn.active{color:var(--accent);}
+  .navbtn .ic{font-size:18px;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .card h3{margin:0 0 8px;font-size:15px;}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .col{display:flex;flex-direction:column;gap:8px;}
+  .muted{color:var(--dim);font-size:12px;}
+  .big{font-size:22px;font-weight:bold;}
+
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:bold;cursor:pointer;}
+  .btn.secondary{background:var(--elev);color:var(--text);border:1px solid var(--border);}
+  .btn.success{background:var(--accent-2);}
+  .btn.danger{background:var(--danger);}
+  .btn.small{padding:6px 10px;font-size:12px;border-radius:8px;}
+  .btn.block{width:100%;}
+  .btn:disabled{opacity:.5;}
+
+  input[type=text],input[type=number],input[type=password],input[type=date],select{
+    width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:10px 12px;font-size:14px;
+  }
+  label{font-size:12px;color:var(--dim);margin-bottom:4px;display:block;}
+
+  .listitem{border-bottom:1px solid var(--border);padding:10px 0;}
+  .listitem:last-child{border-bottom:none;}
+
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-box{width:100%;max-width:360px;text-align:center;}
+  .login-box h1{font-size:22px;margin-bottom:4px;}
+  .login-box .sub{color:var(--dim);font-size:13px;margin-bottom:22px;}
+  .staffbtn{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;font-size:15px;color:var(--text);display:flex;align-items:center;gap:12px;}
+
+  .toast{position:fixed;bottom:76px;right:50%;transform:translateX(50%);background:var(--elev);border:1px solid var(--border);
+    color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;z-index:99;max-width:90vw;}
+
+  .overlay{position:fixed;inset:0;background:#000c;display:flex;align-items:flex-end;justify-content:center;z-index:50;}
+  .sheet{background:var(--card);border-radius:18px 18px 0 0;padding:16px;width:100%;max-width:520px;max-height:88vh;overflow:auto;}
+  .sheet .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .sheet .head h3{margin:0;}
+  .closebtn{background:var(--elev);border:1px solid var(--border);color:var(--text);border-radius:50%;width:30px;height:30px;font-size:14px;}
+
+  .tabs2{display:flex;gap:8px;margin-bottom:12px;}
+  .tabs2 .btn{flex:1;}
+
+  table.rep{width:100%;border-collapse:collapse;font-size:13px;}
+  table.rep td{padding:7px 4px;border-bottom:1px solid var(--border);}
+  table.rep td:first-child{color:var(--dim);}
+  table.rep td:last-child{text-align:left;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const SUPABASE_URL = 'https://owlajemxuxtmbehljwcd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93bGFqZW14dXh0bWJlaGxqd2NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTU5NjcsImV4cCI6MjEwNDc5MTk2N30.FgcrxA5hvh5-AqX9s17fyWf_-1MYefswo8Bo1iqbQFI';
+
+async function sb(path, opts){
+  opts = opts || {};
+  const method = opts.method || 'GET';
+  const headers = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json',
+  };
+  if (method !== 'GET') headers['Prefer'] = 'return=representation';
+  let res;
+  try{
+    res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method, headers, body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+  }catch(e){
+    throw new Error('اتصال به اینترنت برقرار نیست');
+  }
+  if (!res.ok){
+    const t = await res.text().catch(()=> '');
+    throw new Error('خطا: ' + res.status + ' ' + t);
+  }
+  if (res.status === 204) return null;
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+function enc(s){ return encodeURIComponent(s); }
+function toman(n){ return Math.round(n||0).toLocaleString('en-US') + ' تومان'; }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDateOnly(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('fa-IR');
+}
+
+function loadStoredStaff(){
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem('gna_staff') || 'null'); }catch(e){}
+  if (!s || !s.username || !s.display_name){ localStorage.removeItem('gna_staff'); return null; }
+  return s;
+}
+const state = {
+  staff: loadStoredStaff(),
+  tab: 'expenses',
+  expenses: [],
+  newExpense: { description:'', amount:'', date: todayStr() },
+  report: { mode:'week', offset:0, data:null, range:null },
+  dayLog: { offset:0, paidIncome:undefined, expenses:[], range:null },
+  loading: false,
+  modal: null,
+  toast: null,
+  submitting: false,
+};
+
+function showToast(msg){
+  state.toast = msg;
+  render();
+  setTimeout(()=>{ state.toast = null; render(); }, 2500);
+}
+async function safe(fn){
+  try{ await fn(); }
+  catch(e){ showToast(e.message || 'خطا رخ داد'); }
+}
+function isAdmin(){ return !!state.staff && state.staff.username === 'arvin'; }
+
+// ---------- Auth ----------
+async function login(username, password){
+  const rows = await sb('staff?username=eq.' + enc(username) + '&password=eq.' + enc(password) + '&select=*');
+  if (!rows.length){ showToast('نام کاربری یا رمز اشتباه است'); return; }
+  state.staff = rows[0];
+  localStorage.setItem('gna_staff', JSON.stringify(rows[0]));
+  await bootApp();
+}
+function logout(){
+  state.staff = null;
+  localStorage.removeItem('gna_staff');
+  render();
+}
+async function changePassword(newPass){
+  await sb('staff?username=eq.' + enc(state.staff.username), { method:'PATCH', body:{ password:newPass } });
+  state.staff.password = newPass;
+  localStorage.setItem('gna_staff', JSON.stringify(state.staff));
+  showToast('رمز عوض شد');
+  closeModal();
+}
+
+// ---------- Expenses ----------
+async function loadExpenses(){
+  state.expenses = await sb('expenses?select=*&order=expense_date.desc,created_at.desc&limit=300');
+}
+async function addExpense(description, amount, date){
+  if (!description || !amount){ showToast('شرح و مبلغ را وارد کنید'); return; }
+  await sb('expenses', { method:'POST', body:{
+    description, amount: Number(amount), expense_date: date || todayStr(), staff_username: state.staff.username,
+  }});
+  await loadExpenses();
+  showToast('هزینه ثبت شد');
+}
+async function deleteExpense(id){
+  if (!isAdmin()) return;
+  if (!confirm('این هزینه برای همیشه حذف می‌شود. مطمئن هستید؟')) return;
+  await sb('expenses?id=eq.'+id, { method:'DELETE' });
+  await Promise.all([loadExpenses(), state.dayLog.range ? loadDayLog() : Promise.resolve()]);
+  showToast('هزینه حذف شد');
+  render();
+}
+
+// ---------- Report ----------
+function localDateStr(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+function rangeFor(mode, offset){
+  const now = new Date();
+  if (mode === 'day'){
+    const start = new Date(now); start.setHours(0,0,0,0); start.setDate(start.getDate() + offset);
+    const end = new Date(start); end.setDate(end.getDate()+1);
+    return {start, end};
+  }
+  if (mode === 'week'){
+    const day = now.getDay();
+    const diffToSat = (day + 1) % 7;
+    const start = new Date(now); start.setHours(0,0,0,0); start.setDate(start.getDate() - diffToSat + offset*7);
+    const end = new Date(start); end.setDate(end.getDate()+7);
+    return {start, end};
+  } else {
+    const trueStart = new Date(now); trueStart.setHours(0,0,0,0); trueStart.setDate(trueStart.getDate() + offset*30 - 29);
+    const end = new Date(trueStart); end.setDate(end.getDate()+30);
+    return {start: trueStart, end};
+  }
+}
+function paymentBucket(){ return { card:0, cash:0, debt:0 }; }
+async function loadReport(){
+  const {start, end} = rangeFor(state.report.mode, state.report.offset);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const startDate = localDateStr(start);
+  const endDate = localDateStr(end);
+  const [sessions, cafeOrders, expenses] = await Promise.all([
+    sb('sessions?status=eq.completed&end_at=gte.'+startIso+'&end_at=lt.'+endIso+'&select=play_cost,cafe_cost,payment_type'),
+    sb('cafe_orders?status=eq.completed&created_at=gte.'+startIso+'&created_at=lt.'+endIso+'&select=total,payment_type'),
+    sb('expenses?expense_date=gte.'+startDate+'&expense_date=lt.'+endDate+'&select=amount'),
+  ]);
+  const rental = paymentBucket();
+  const cafe = paymentBucket();
+  sessions.forEach(s=>{
+    const key = s.payment_type==='card' ? 'card' : (s.payment_type==='cash' ? 'cash' : 'debt');
+    rental[key] += Number(s.play_cost||0);
+    cafe[key] += Number(s.cafe_cost||0);
+  });
+  cafeOrders.forEach(o=>{
+    const key = o.payment_type==='card' ? 'card' : (o.payment_type==='cash' ? 'cash' : 'debt');
+    cafe[key] += Number(o.total||0);
+  });
+  const rentalTotal = rental.card + rental.cash + rental.debt;
+  const cafeTotal = cafe.card + cafe.cash + cafe.debt;
+  const totalIncome = rentalTotal + cafeTotal;
+  const totalExpenses = expenses.reduce((a,e)=>a+Number(e.amount||0),0);
+  const netProfit = totalIncome - totalExpenses;
+  state.report.data = { rental, cafe, rentalTotal, cafeTotal, totalIncome, totalExpenses, netProfit };
+  state.report.range = {start, end};
+  render();
+}
+function setReportMode(m){ state.report.mode = m; state.report.offset = 0; safe(loadReport); }
+function shiftReport(delta){ state.report.offset += delta; safe(loadReport); }
+
+// ---------- Day log (history) ----------
+function staffLabel(u){ return u==='arvin' ? 'اروین' : (u==='parsa' ? 'پارسا' : (u||'-')); }
+async function loadDayLog(){
+  const {start, end} = rangeFor('day', state.dayLog.offset);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const startDate = localDateStr(start);
+  const endDate = localDateStr(end);
+  const [sessions, cafeOrders, expenses] = await Promise.all([
+    sb('sessions?status=eq.completed&end_at=gte.'+startIso+'&end_at=lt.'+endIso+'&select=play_cost,cafe_cost,payment_type'),
+    sb('cafe_orders?status=eq.completed&created_at=gte.'+startIso+'&created_at=lt.'+endIso+'&select=total,payment_type'),
+    sb('expenses?expense_date=gte.'+startDate+'&expense_date=lt.'+endDate+'&select=*&order=created_at.desc'),
+  ]);
+  const paidIncome = sessions.reduce((a,s)=> a + (s.payment_type!=='unpaid' ? Number(s.play_cost||0)+Number(s.cafe_cost||0) : 0), 0)
+    + cafeOrders.reduce((a,o)=> a + (o.payment_type!=='unpaid' ? Number(o.total||0) : 0), 0);
+  state.dayLog.paidIncome = paidIncome;
+  state.dayLog.expenses = expenses;
+  state.dayLog.range = {start, end};
+  render();
+}
+function shiftDayLog(delta){ state.dayLog.offset += delta; safe(loadDayLog); }
+
+// ---------- Modal helpers ----------
+function openModal(m){ state.modal = m; render(); }
+function closeModal(){ state.modal = null; render(); }
+
+// ---------- Boot ----------
+async function bootApp(){
+  state.loading = true; render();
+  await safe(async ()=>{
+    await loadExpenses();
+    await loadReport();
+    await loadDayLog();
+  });
+  state.loading = false;
+  render();
+  setInterval(()=>{
+    if (!state.staff) return;
+    if (state.modal) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) return;
+    render();
+  }, 5000);
+}
+
+// ---------- Render ----------
+function renderLogin(){
+  return `
+  <div class="login-wrap"><div class="login-box">
+    <h1>💰 حسابداری گیم‌نت</h1>
+    <div class="sub">هزینه‌ها و گزارش سود</div>
+    <button class="staffbtn" onclick="openModal({type:'login', user:'arvin'})">
+      <span class="avatar">ا</span> اروین
+    </button>
+    <button class="staffbtn" onclick="openModal({type:'login', user:'parsa'})">
+      <span class="avatar">پ</span> پارسا
+    </button>
+  </div></div>`;
+}
+function renderTopbar(){
+  return `
+  <div class="topbar">
+    <div class="right">
+      <div class="avatar" onclick="openModal({type:'profile'})">${state.staff.display_name[0]}</div>
+      <div class="title">${state.staff.display_name}</div>
+    </div>
+    <div class="chip">حسابداری گیم‌نت</div>
+  </div>`;
+}
+function renderBottomnav(){
+  const tabs = [
+    ['expenses','🧾','هزینه‌ها'],
+    ['report','📊','گزارش سود'],
+    ['history','📅','تاریخچه'],
+  ];
+  return `<div class="bottombar">${tabs.map(([id,ic,label])=>`
+    <button class="navbtn ${state.tab===id?'active':''}" onclick="setTab('${id}')">
+      <span class="ic">${ic}</span><span>${label}</span>
+    </button>`).join('')}</div>`;
+}
+function setTab(t){
+  state.tab = t;
+  if (t==='expenses') safe(loadExpenses);
+  if (t==='report') safe(loadReport);
+  if (t==='history') safe(loadDayLog);
+  render();
+}
+
+function renderExpenses(){
+  const m = state.newExpense;
+  const rows = state.expenses.map(e=>`
+    <div class="listitem row">
+      <div>
+        <div>${e.description}</div>
+        <div class="muted">${fmtDateOnly(e.expense_date)}</div>
+      </div>
+      <div class="row" style="gap:8px">
+        <b>${toman(e.amount)}</b>
+        ${isAdmin() ? `<button class="btn danger small" onclick="safe(()=>deleteExpense(${e.id}))">حذف</button>` : ''}
+      </div>
+    </div>`).join('') || `<div class="muted">هزینه‌ای ثبت نشده</div>`;
+  return `
+    <div class="card">
+      <h3>ثبت هزینه جدید</h3>
+      <label>شرح هزینه</label>
+      <input type="text" id="expDesc" value="${m.description||''}" oninput="state.newExpense.description=this.value">
+      <label style="margin-top:8px">مبلغ (تومان)</label>
+      <input type="number" id="expAmount" value="${m.amount||''}" oninput="state.newExpense.amount=this.value">
+      <label style="margin-top:8px">تاریخ</label>
+      <input type="date" id="expDate" value="${m.date||todayStr()}" oninput="state.newExpense.date=this.value">
+      <button class="btn block" style="margin-top:12px" ${state.submitting?'disabled':''} onclick="safe(async()=>{
+        if (state.submitting) return;
+        const desc = (state.newExpense.description||'').trim();
+        const amt = state.newExpense.amount;
+        const dt = state.newExpense.date || todayStr();
+        state.submitting = true; render();
+        try{
+          await addExpense(desc, amt, dt);
+          state.newExpense = { description:'', amount:'', date: todayStr() };
+        } finally { state.submitting = false; render(); }
+      })">${state.submitting?'در حال ثبت...':'ثبت هزینه'}</button>
+    </div>
+    <div class="card">${rows}</div>`;
+}
+
+function renderReport(){
+  const r = state.report;
+  if (!r.data) return `<div class="muted" style="padding:20px;text-align:center">در حال بارگذاری...</div>`;
+  const d = r.data;
+  const rangeLabel = r.range ? (r.range.start.toLocaleDateString('fa-IR') + ' تا ' + new Date(r.range.end-1).toLocaleDateString('fa-IR')) : '';
+  return `
+    <div class="tabs2">
+      <button class="btn small ${r.mode==='day'?'':'secondary'}" onclick="setReportMode('day')">روزانه</button>
+      <button class="btn small ${r.mode==='week'?'':'secondary'}" onclick="setReportMode('week')">هفتگی</button>
+      <button class="btn small ${r.mode==='month'?'':'secondary'}" onclick="setReportMode('month')">ماهانه (۳۰ روزه)</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn secondary small" onclick="shiftReport(-1)">⟨ بازه قبل</button>
+      <span class="muted">${rangeLabel}</span>
+      <button class="btn secondary small" onclick="shiftReport(1)">بازه بعد ⟩</button>
+    </div>
+    <div class="card">
+      <table class="rep">
+        <tr><td colspan="2"><b>درآمد اجاره دستگاه‌ها</b></td></tr>
+        <tr><td>کارتخوان</td><td>${toman(d.rental.card)}</td></tr>
+        <tr><td>نقدی</td><td>${toman(d.rental.cash)}</td></tr>
+        <tr><td>بدهی (پرداخت‌نشده)</td><td>${toman(d.rental.debt)}</td></tr>
+        <tr><td><b>جمع اجاره</b></td><td><b>${toman(d.rentalTotal)}</b></td></tr>
+        <tr><td colspan="2" style="padding-top:14px"><b>درآمد کافه</b></td></tr>
+        <tr><td>کارتخوان</td><td>${toman(d.cafe.card)}</td></tr>
+        <tr><td>نقدی</td><td>${toman(d.cafe.cash)}</td></tr>
+        <tr><td>بدهی (پرداخت‌نشده)</td><td>${toman(d.cafe.debt)}</td></tr>
+        <tr><td><b>جمع کافه</b></td><td><b>${toman(d.cafeTotal)}</b></td></tr>
+        <tr><td style="padding-top:14px"><b>جمع کل درآمد</b></td><td style="padding-top:14px"><b>${toman(d.totalIncome)}</b></td></tr>
+        <tr><td>جمع هزینه‌ها</td><td>${toman(d.totalExpenses)}</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="row"><span class="big">سود خالص</span><span class="big" style="color:${d.netProfit>=0?'var(--accent-2)':'var(--danger)'}">${toman(d.netProfit)}</span></div>
+    </div>`;
+}
+
+function renderDayLog(){
+  const d = state.dayLog;
+  if (d.paidIncome===undefined) return `<div class="muted" style="padding:20px;text-align:center">در حال بارگذاری...</div>`;
+  const dateLabel = d.range ? d.range.start.toLocaleDateString('fa-IR') : '';
+  const rows = d.expenses.map(e=>`
+    <div class="listitem row">
+      <div>
+        <div>${e.description}</div>
+        <div class="muted">ثبت‌شده توسط: ${staffLabel(e.staff_username)}</div>
+      </div>
+      <div class="row" style="gap:8px">
+        <b>${toman(e.amount)}</b>
+        ${isAdmin() ? `<button class="btn danger small" onclick="safe(()=>deleteExpense(${e.id}))">حذف</button>` : ''}
+      </div>
+    </div>`).join('') || `<div class="muted">هزینه‌ای برای این روز ثبت نشده</div>`;
+  return `
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn secondary small" onclick="shiftDayLog(-1)">⟨ روز قبل</button>
+      <span class="muted">${dateLabel}</span>
+      <button class="btn secondary small" onclick="shiftDayLog(1)">روز بعد ⟩</button>
+    </div>
+    <div class="card">
+      <div class="row"><span>درآمد پرداخت‌شده (به‌غیر از بدهی)</span><span class="big" style="color:var(--accent-2)">${toman(d.paidIncome)}</span></div>
+    </div>
+    <div class="card"><h3>هزینه‌های این روز</h3>${rows}</div>`;
+}
+
+function renderModal(){
+  const m = state.modal;
+  if (!m) return '';
+  let body = '';
+  if (m.type==='login'){
+    const label = m.user==='arvin' ? 'اروین' : 'پارسا';
+    body = `
+      <div class="head"><h3>ورود ${label}</h3><button class="closebtn" onclick="closeModal()">✕</button></div>
+      <label>رمز عبور</label>
+      <input type="password" id="loginPass" value="${m.pass||''}" oninput="state.modal.pass=this.value">
+      <button class="btn block" style="margin-top:12px" onclick="safe(()=>login('${m.user}', state.modal.pass||''))">ورود</button>`;
+  }
+  else if (m.type==='profile'){
+    body = `
+      <div class="head"><h3>${state.staff.display_name}</h3><button class="closebtn" onclick="closeModal()">✕</button></div>
+      <label>رمز جدید</label>
+      <input type="password" id="newPass" value="${m.newPass||''}" oninput="state.modal.newPass=this.value">
+      <button class="btn block" style="margin-top:10px" onclick="safe(()=>changePassword(state.modal.newPass||''))">تغییر رمز</button>
+      <button class="btn danger block" style="margin-top:10px" onclick="logout(); closeModal();">خروج از حساب</button>`;
+  }
+  return `<div class="overlay" onclick="if(event.target===this) closeModal()"><div class="sheet">${body}</div></div>`;
+}
+
+function render(){
+  const root = document.getElementById('root');
+  const ae = document.activeElement;
+  const isTyping = ae && root.contains(ae) && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA');
+  const focusInfo = isTyping ? { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd } : null;
+
+  if (!state.staff){
+    root.innerHTML = renderLogin() + renderModal();
+  } else {
+    let content = '';
+    if (state.loading) content = '<div class="muted" style="padding:20px;text-align:center">در حال بارگذاری...</div>';
+    else if (state.tab==='expenses') content = renderExpenses();
+    else if (state.tab==='report') content = renderReport();
+    else if (state.tab==='history') content = renderDayLog();
+
+    root.innerHTML = `
+      ${renderTopbar()}
+      <main>${content}</main>
+      ${renderBottomnav()}
+      ${renderModal()}
+      ${state.toast ? `<div class="toast">${state.toast}</div>` : ''}
+    `;
+  }
+
+  if (focusInfo && focusInfo.id){
+    const el = document.getElementById(focusInfo.id);
+    if (el){
+      el.focus({ preventScroll: true });
+      if (typeof focusInfo.start === 'number'){
+        try{ el.setSelectionRange(focusInfo.start, focusInfo.end); }catch(e){}
+      }
+    }
+  }
+}
+
+render();
+if (state.staff) bootApp();
+</script>
+</body>
+</html>
